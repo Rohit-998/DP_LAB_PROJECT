@@ -1,12 +1,10 @@
 package com.parking.smart_parking.api.controller;
 
-import com.parking.smart_parking.core.abstractfactory.*;
 import com.parking.smart_parking.core.bridge.*;
 import com.parking.smart_parking.core.chain.*;
 import com.parking.smart_parking.core.db.ParkingDAO;
 import com.parking.smart_parking.core.factory.*;
 import com.parking.smart_parking.core.observer.*;
-import com.parking.smart_parking.core.proxy.GateSensorProxy;
 import com.parking.smart_parking.core.singleton.ParkingLot;
 
 import org.springframework.web.bind.annotation.*;
@@ -41,12 +39,10 @@ public class ParkingController {
         String vehicleNumber = request.get("vehicleNumber");
         String vehicleType = request.get("vehicleType");
         String ownerName = request.get("ownerName");
-        String zone = request.getOrDefault("zone", "open");
 
-        // Step 1: Proxy pre-check
+        // Step 1: Chain of Responsibility validates the vehicle
         VehicleValidator chain = ValidationChainFactory.getChain();
-        GateSensorProxy proxy = new GateSensorProxy(chain);
-        String validationResult = proxy.validate(vehicleNumber, vehicleType);
+        String validationResult = chain.validate(vehicleNumber, vehicleType);
 
         if (validationResult == null) {
             response.put("success", false);
@@ -62,20 +58,8 @@ public class ParkingController {
             return response;
         }
 
-        // Step 3: Abstract Factory creates spot + ticket based on zone
-        ParkingZoneFactory zoneFactory;
-        if ("covered".equalsIgnoreCase(zone)) {
-            zoneFactory = new CoveredZoneFactory();
-        } else {
-            zoneFactory = new OpenZoneFactory();
-        }
-
-        String spotNumber = zone.toUpperCase().charAt(0) + "-" + (int)(Math.random() * 100);
-        ParkingSpot spot = zoneFactory.createSpot(spotNumber);
-        ParkingTicket ticket = zoneFactory.createTicket(vehicleNumber);
-        spot.occupy(vehicleNumber);
-
-        // Step 4: Singleton parks the vehicle + notifies observers
+        // Step 3: Singleton parks the vehicle + notifies observers
+        String spotNumber = "S-" + (int)(Math.random() * 100);
         boolean parked = parkingLot.parkVehicle(vehicle);
         if (!parked) {
             response.put("success", false);
@@ -83,15 +67,12 @@ public class ParkingController {
             return response;
         }
 
-        // Step 5: Save to DB
-        dao.insertTransaction(vehicleNumber, vehicleType, spotNumber, zone);
+        // Step 4: Save to DB
+        dao.insertTransaction(vehicleNumber, vehicleType, spotNumber, "general");
 
         response.put("success", true);
         response.put("message", vehicle.getType() + " parked successfully!");
         response.put("spotNumber", spotNumber);
-        response.put("zone", spot.getZoneType());
-        response.put("ticketType", ticket.getTicketType());
-        response.put("rate", ticket.getRate());
         response.put("availableSpots", parkingLot.getAvailableSpots());
         return response;
     }
