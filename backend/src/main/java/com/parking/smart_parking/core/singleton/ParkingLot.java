@@ -1,6 +1,7 @@
 package com.parking.smart_parking.core.singleton;
 
 import com.parking.smart_parking.core.factory.Vehicle;
+import com.parking.smart_parking.core.memento.ParkingLotMemento;
 import com.parking.smart_parking.core.observer.ParkingObserver;
 
 import java.util.ArrayList;
@@ -99,4 +100,21 @@ public class ParkingLot {
     public Map<String, Vehicle> getParkedVehicles() {
         return parkedVehicles;
     }
+
+    // ─── Memento Pattern: Save & Restore state ────────────────────────
+
+    public ParkingLotMemento saveState() {
+        ParkingLotMemento memento = new ParkingLotMemento(availableSpots, totalSpots, parkedVehicles);
+        System.out.println("MEMENTO: ParkingLot state saved. Available: " + availableSpots + "/" + totalSpots);
+        return memento;
+    }
+
+    public void restoreState(ParkingLotMemento memento) {
+        this.availableSpots = memento.getAvailableSpots();
+        this.totalSpots = memento.getTotalSpots();
+        this.parkedVehicles = memento.getParkedVehicles();
+        System.out.println("MEMENTO: ParkingLot state restored. Available: " + availableSpots + "/" + totalSpots);
+        notifyObservers();
+    }
 }
+
